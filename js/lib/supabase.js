@@ -540,9 +540,26 @@ export const productSizePricesApi = {
 };
 
 // Storage (imagens)
+function sanitizeStorageFileName(fileName) {
+  const fallback = 'image.jpg';
+  if (!fileName || typeof fileName !== 'string') return fallback;
+  // Separa extensão
+  const dot = fileName.lastIndexOf('.');
+  let base = dot > 0 ? fileName.slice(0, dot) : fileName;
+  let ext = dot > 0 ? fileName.slice(dot).toLowerCase() : '.jpg';
+  // Remove acentos (Anéis -> Aneis), espaços e caracteres inválidos pro S3/Supabase
+  base = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  base = base.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^[-._]+|[-._]+$/g, '');
+  if (!base) base = 'image';
+  base = base.slice(0, 60);
+  ext = ext.replace(/[^.a-z0-9]/g, '').slice(0, 10) || '.jpg';
+  return `${base}${ext}`;
+}
+
 export const storageApi = {
   async uploadProductImage(storeId, file, fileName) {
-    const path = `${storeId}/${Date.now()}-${fileName}`;
+    const safeName = sanitizeStorageFileName(fileName || file?.name || 'image.jpg');
+    const path = `${storeId}/${Date.now()}-${safeName}`;
     const { data, error } = await supabase.storage
       .from('product-images')
       .upload(path, file, { upsert: false });
